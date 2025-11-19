@@ -4,16 +4,16 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
+mod install;
 mod manifest;
 mod package;
-mod resolver;
 mod registry;
-mod install;
+mod resolver;
 
 pub use manifest::Manifest;
 pub use package::Package;
-use resolver::DependencyResolver;
 use registry::Registry;
+use resolver::DependencyResolver;
 
 #[derive(Parser)]
 #[command(name = "painpkg")]
@@ -77,7 +77,11 @@ fn main() -> anyhow::Result<()> {
         Commands::Init { name } => {
             init_project(name)?;
         }
-        Commands::Add { package, version, dev } => {
+        Commands::Add {
+            package,
+            version,
+            dev,
+        } => {
             add_dependency(&package, version.as_deref(), dev)?;
         }
         Commands::Remove { package } => {
@@ -115,7 +119,9 @@ fn init_project(name: Option<String>) -> anyhow::Result<()> {
 
     let manifest_path = current_dir.join("pain.toml");
     if manifest_path.exists() {
-        return Err(anyhow::anyhow!("pain.toml already exists in this directory"));
+        return Err(anyhow::anyhow!(
+            "pain.toml already exists in this directory"
+        ));
     }
 
     let manifest = Manifest::new(&project_name);
@@ -148,7 +154,7 @@ fn add_dependency(package: &str, version: Option<&str>, dev: bool) -> anyhow::Re
     let mut manifest = Manifest::load_from_file(&manifest_path)?;
 
     let version_constraint = version.unwrap_or("*").to_string();
-    
+
     if dev {
         manifest.add_dev_dependency(package, &version_constraint)?;
     } else {
@@ -237,7 +243,7 @@ fn build_project(_output: Option<PathBuf>) -> anyhow::Result<()> {
     let manifest = Manifest::load_from_file(&manifest_path)?;
 
     println!("Building project: {}...", manifest.name);
-    
+
     // TODO: Integrate with pain-compiler
     // For now, just check that dependencies are installed
     let registry = Registry::new()?;
@@ -253,8 +259,11 @@ fn publish_package(_registry_url: Option<&str>) -> anyhow::Result<()> {
     let manifest_path = find_manifest()?;
     let manifest = Manifest::load_from_file(&manifest_path)?;
 
-    println!("Publishing package: {} v{}...", manifest.name, manifest.version);
-    
+    println!(
+        "Publishing package: {} v{}...",
+        manifest.name, manifest.version
+    );
+
     // Validate the manifest
     manifest.validate()?;
 
@@ -274,7 +283,7 @@ fn publish_package(_registry_url: Option<&str>) -> anyhow::Result<()> {
 fn find_manifest() -> anyhow::Result<PathBuf> {
     let current_dir = std::env::current_dir()?;
     let manifest_path = current_dir.join("pain.toml");
-    
+
     if !manifest_path.exists() {
         return Err(anyhow::anyhow!(
             "pain.toml not found. Run 'painpkg init' to create a new project."

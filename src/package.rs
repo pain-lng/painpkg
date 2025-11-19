@@ -25,9 +25,13 @@ pub enum PackageSource {
 }
 
 impl Package {
-    pub fn from_manifest(manifest: &crate::manifest::Manifest, source: PackageSource, path: PathBuf) -> anyhow::Result<Self> {
+    pub fn from_manifest(
+        manifest: &crate::manifest::Manifest,
+        source: PackageSource,
+        path: PathBuf,
+    ) -> anyhow::Result<Self> {
         let version = semver::Version::parse(&manifest.version)?;
-        
+
         Ok(Self {
             name: manifest.name.clone(),
             version,
@@ -48,7 +52,7 @@ impl Package {
 
         let manifest = crate::manifest::Manifest::load_from_file(&manifest_path)?;
         let source = PackageSource::Local(path.to_path_buf());
-        
+
         Self::from_manifest(&manifest, source, path.to_path_buf())
     }
 
@@ -73,4 +77,3 @@ impl Package {
         Ok(files)
     }
 }
-

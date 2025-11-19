@@ -1,8 +1,8 @@
 // Package installation
 
 use crate::package::Package;
-use crate::resolver::ResolvedPackage;
 use crate::registry::Registry;
+use crate::resolver::ResolvedPackage;
 use std::path::PathBuf;
 
 pub fn install_packages(packages: &[ResolvedPackage]) -> anyhow::Result<()> {
@@ -15,7 +15,7 @@ pub fn install_packages(packages: &[ResolvedPackage]) -> anyhow::Result<()> {
     for resolved in packages {
         let package = &resolved.package;
         println!("  Installing {} v{}...", package.name, package.version);
-        
+
         registry.install_package(package, &install_dir)?;
     }
 
@@ -26,7 +26,7 @@ fn get_install_directory() -> anyhow::Result<PathBuf> {
     // Check for .pain directory in current project
     let current_dir = std::env::current_dir()?;
     let local_install = current_dir.join(".pain").join("packages");
-    
+
     // Prefer local installation (project-specific)
     Ok(local_install)
 }
@@ -68,4 +68,3 @@ pub fn find_installed_package(package_name: &str) -> anyhow::Result<Option<Packa
 
     Package::load_from_path(latest_path).map(Some)
 }
-

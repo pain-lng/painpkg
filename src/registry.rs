@@ -1,10 +1,10 @@
 // Package registry - manages package discovery and retrieval
 
 use crate::package::Package;
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
 use semver::VersionReq;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct IndexEntry {
@@ -41,9 +41,13 @@ impl Registry {
         })
     }
 
-    pub fn find_package(&mut self, name: &str, version_req: &VersionReq) -> anyhow::Result<Option<Package>> {
+    pub fn find_package(
+        &mut self,
+        name: &str,
+        version_req: &VersionReq,
+    ) -> anyhow::Result<Option<Package>> {
         let packages = self.find_all_versions(name)?;
-        
+
         for pkg in packages {
             if version_req.matches(&pkg.version) {
                 return Ok(Some(pkg));
@@ -111,10 +115,13 @@ impl Registry {
             HashMap::new()
         };
 
-        let entries: Vec<IndexEntry> = packages.iter()
+        let entries: Vec<IndexEntry> = packages
+            .iter()
             .map(|pkg| IndexEntry {
                 version: pkg.version.to_string(),
-                path: pkg.path.strip_prefix(&self.local_registry_path)
+                path: pkg
+                    .path
+                    .strip_prefix(&self.local_registry_path)
                     .unwrap_or(&pkg.path)
                     .to_string_lossy()
                     .to_string(),
@@ -131,7 +138,8 @@ impl Registry {
 
     pub fn publish_package(&self, package: &Package) -> anyhow::Result<()> {
         // Create package directory in registry
-        let package_dir = self.local_registry_path
+        let package_dir = self
+            .local_registry_path
             .join(&package.name)
             .join(package.version.to_string());
         std::fs::create_dir_all(&package_dir)?;
@@ -201,13 +209,18 @@ impl Registry {
         Ok(packages)
     }
 
-    pub fn fetch_from_git(&mut self, _name: &str, url: &str, rev: Option<&str>) -> anyhow::Result<Package> {
+    pub fn fetch_from_git(
+        &mut self,
+        _name: &str,
+        url: &str,
+        rev: Option<&str>,
+    ) -> anyhow::Result<Package> {
         // Create cache directory for git packages
         let git_cache = self.local_registry_path.join("git");
         std::fs::create_dir_all(&git_cache)?;
 
         // Create a unique directory name from URL
-        use sha2::{Sha256, Digest};
+        use sha2::{Digest, Sha256};
         let mut hasher = Sha256::new();
         hasher.update(url.as_bytes());
         let url_hash = hex::encode(hasher.finalize());
@@ -218,18 +231,24 @@ impl Registry {
             let output = std::process::Command::new("git")
                 .args(&["clone", url, cache_dir.to_str().unwrap()])
                 .output()?;
-            
+
             if !output.status.success() {
-                return Err(anyhow::anyhow!("Failed to clone git repository: {}", String::from_utf8_lossy(&output.stderr)));
+                return Err(anyhow::anyhow!(
+                    "Failed to clone git repository: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                ));
             }
         } else {
             // Update existing repository
             let output = std::process::Command::new("git")
                 .args(&["-C", cache_dir.to_str().unwrap(), "fetch"])
                 .output()?;
-            
+
             if !output.status.success() {
-                return Err(anyhow::anyhow!("Failed to fetch git repository: {}", String::from_utf8_lossy(&output.stderr)));
+                return Err(anyhow::anyhow!(
+                    "Failed to fetch git repository: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                ));
             }
         }
 
@@ -238,9 +257,13 @@ impl Registry {
             let output = std::process::Command::new("git")
                 .args(&["-C", cache_dir.to_str().unwrap(), "checkout", revision])
                 .output()?;
-            
+
             if !output.status.success() {
-                return Err(anyhow::anyhow!("Failed to checkout revision {}: {}", revision, String::from_utf8_lossy(&output.stderr)));
+                return Err(anyhow::anyhow!(
+                    "Failed to checkout revision {}: {}",
+                    revision,
+                    String::from_utf8_lossy(&output.stderr)
+                ));
             }
         }
 
@@ -249,7 +272,9 @@ impl Registry {
     }
 
     pub fn install_package(&self, package: &Package, target_dir: &Path) -> anyhow::Result<()> {
-        let install_path = target_dir.join(&package.name).join(package.version.to_string());
+        let install_path = target_dir
+            .join(&package.name)
+            .join(package.version.to_string());
         std::fs::create_dir_all(&install_path)?;
 
         // Copy package files
@@ -262,7 +287,7 @@ impl Registry {
         // Copy src directory
         let src_source = source.join("src");
         let src_dest = dest.join("src");
-        
+
         if src_source.exists() {
             copy_dir_all(&src_source, &src_dest)?;
         }
@@ -293,4 +318,3 @@ fn copy_dir_all(src: &Path, dst: &Path) -> anyhow::Result<()> {
     }
     Ok(())
 }
-

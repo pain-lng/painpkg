@@ -45,7 +45,8 @@ impl Manifest {
         if self.dependencies.contains_key(name) {
             return Err(anyhow::anyhow!("Dependency {} already exists", name));
         }
-        self.dependencies.insert(name.to_string(), version.to_string());
+        self.dependencies
+            .insert(name.to_string(), version.to_string());
         Ok(())
     }
 
@@ -53,12 +54,14 @@ impl Manifest {
         if self.dev_dependencies.contains_key(name) {
             return Err(anyhow::anyhow!("Dev dependency {} already exists", name));
         }
-        self.dev_dependencies.insert(name.to_string(), version.to_string());
+        self.dev_dependencies
+            .insert(name.to_string(), version.to_string());
         Ok(())
     }
 
     pub fn remove_dependency(&mut self, name: &str) -> anyhow::Result<()> {
-        if self.dependencies.remove(name).is_none() && self.dev_dependencies.remove(name).is_none() {
+        if self.dependencies.remove(name).is_none() && self.dev_dependencies.remove(name).is_none()
+        {
             return Err(anyhow::anyhow!("Dependency {} not found", name));
         }
         Ok(())
@@ -77,4 +80,3 @@ impl Manifest {
         Ok(())
     }
 }
-
