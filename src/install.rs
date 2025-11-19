@@ -31,11 +31,13 @@ fn get_install_directory() -> anyhow::Result<PathBuf> {
     Ok(local_install)
 }
 
+#[allow(dead_code)]
 pub fn get_package_path(package_name: &str, version: &semver::Version) -> anyhow::Result<PathBuf> {
     let install_dir = get_install_directory()?;
     Ok(install_dir.join(package_name).join(version.to_string()))
 }
 
+#[allow(dead_code)]
 pub fn find_installed_package(package_name: &str) -> anyhow::Result<Option<Package>> {
     let install_dir = get_install_directory()?;
     let package_dir = install_dir.join(package_name);

@@ -41,6 +41,7 @@ impl Registry {
         })
     }
 
+    #[allow(dead_code)]
     pub fn find_package(
         &mut self,
         name: &str,
@@ -229,7 +230,7 @@ impl Registry {
         // Clone or update repository
         if !cache_dir.exists() {
             let output = std::process::Command::new("git")
-                .args(&["clone", url, cache_dir.to_str().unwrap()])
+                .args(["clone", url, cache_dir.to_str().unwrap()])
                 .output()?;
 
             if !output.status.success() {
@@ -241,7 +242,7 @@ impl Registry {
         } else {
             // Update existing repository
             let output = std::process::Command::new("git")
-                .args(&["-C", cache_dir.to_str().unwrap(), "fetch"])
+                .args(["-C", cache_dir.to_str().unwrap(), "fetch"])
                 .output()?;
 
             if !output.status.success() {
@@ -255,7 +256,7 @@ impl Registry {
         // Checkout specific revision if provided
         if let Some(revision) = rev {
             let output = std::process::Command::new("git")
-                .args(&["-C", cache_dir.to_str().unwrap(), "checkout", revision])
+                .args(["-C", cache_dir.to_str().unwrap(), "checkout", revision])
                 .output()?;
 
             if !output.status.success() {

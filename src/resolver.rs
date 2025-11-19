@@ -36,7 +36,7 @@ impl DependencyResolver {
             let version_req = self.parse_version_req(version_req_str)?;
             requirements
                 .entry(name.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(version_req.clone());
             to_resolve.push_back((name.clone(), 0, None, Some(version_req_str.clone())));
         }
@@ -77,7 +77,7 @@ impl DependencyResolver {
                 // Add requirement
                 requirements
                     .entry(dep_name.clone())
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(dep_version_req.clone());
 
                 // Check if dependency is already resolved
