@@ -8,6 +8,7 @@ mod install;
 mod manifest;
 mod package;
 mod registry;
+mod registry_metadata;
 mod resolver;
 
 pub use manifest::Manifest;
@@ -64,9 +65,14 @@ enum Commands {
     },
     /// Publish package to registry
     Publish {
-        /// Registry URL (optional, defaults to local registry)
+        /// Registry URL (optional, defaults to GitHub registry)
         #[arg(short, long)]
         registry: Option<String>,
+    },
+    /// Search packages in registry
+    Search {
+        /// Search query (package name or description)
+        query: String,
     },
 }
 
@@ -101,6 +107,9 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::Publish { registry } => {
             publish_package(registry.as_deref())?;
+        }
+        Commands::Search { query } => {
+            search_packages(&query)?;
         }
     }
 
@@ -255,7 +264,7 @@ fn build_project(_output: Option<PathBuf>) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn publish_package(_registry_url: Option<&str>) -> anyhow::Result<()> {
+fn publish_package(registry_url: Option<&str>) -> anyhow::Result<()> {
     let manifest_path = find_manifest()?;
     let manifest = Manifest::load_from_file(&manifest_path)?;
 
@@ -271,12 +280,130 @@ fn publish_package(_registry_url: Option<&str>) -> anyhow::Result<()> {
     let current_dir = std::env::current_dir()?;
     let package = Package::load_from_path(&current_dir)?;
 
-    // Publish to local registry
-    let registry = Registry::new()?;
-    registry.publish_package(&package)?;
+    // Get repository URL from manifest or git remote
+    let repository_url = if let Some(url) = registry_url {
+        url.to_string()
+    } else {
+        // Try to get git remote URL
+        let output = std::process::Command::new("git")
+            .args(["remote", "get-url", "origin"])
+            .current_dir(&current_dir)
+            .output()?;
+        
+        if output.status.success() {
+            String::from_utf8_lossy(&output.stdout).trim().to_string()
+        } else {
+            return Err(anyhow::anyhow!(
+                "Could not determine repository URL. Please specify with --registry or ensure git remote 'origin' is set."
+            ));
+        }
+    };
 
-    println!("✓ Package published to local registry");
+    let mut registry = Registry::new()?;
+    
+    // Prepare files for publishing
+    let (metadata_path, index_path) = registry.prepare_github_publish(&package, &repository_url)?;
+    
+    println!("✓ Created package metadata: {:?}", metadata_path);
+    println!("✓ Updated index: {:?}", index_path);
+    
+    // Create a branch and commit
+    let registry_path = registry.get_github_registry()?;
+    let branch_name = format!("publish-{}-{}", package.name, package.version);
+    
+    // Ensure we're on main/master branch first
+    let _ = std::process::Command::new("git")
+        .args(["checkout", "main"])
+        .current_dir(&registry_path)
+        .output();
+    let _ = std::process::Command::new("git")
+        .args(["checkout", "master"])
+        .current_dir(&registry_path)
+        .output();
+    
+    // Pull latest changes
+    let _ = std::process::Command::new("git")
+        .args(["pull"])
+        .current_dir(&registry_path)
+        .output();
+    
+    // Checkout new branch
+    let output = std::process::Command::new("git")
+        .args(["checkout", "-b", &branch_name])
+        .current_dir(&registry_path)
+        .output()?;
+    
+    if !output.status.success() {
+        return Err(anyhow::anyhow!(
+            "Failed to create branch: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+    
+    // Add files
+    let metadata_rel = metadata_path.strip_prefix(&registry_path)?;
+    let index_rel = index_path.strip_prefix(&registry_path)?;
+    
+    std::process::Command::new("git")
+        .args(["add", metadata_rel.to_str().unwrap(), index_rel.to_str().unwrap()])
+        .current_dir(&registry_path)
+        .output()?;
+    
+    // Commit
+    let commit_msg = format!("Add {} v{}", package.name, package.version);
+    let output = std::process::Command::new("git")
+        .args(["commit", "-m", &commit_msg])
+        .current_dir(&registry_path)
+        .output()?;
+    
+    if !output.status.success() {
+        return Err(anyhow::anyhow!(
+            "Failed to commit: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+    
+    // Push branch
+    let output = std::process::Command::new("git")
+        .args(["push", "-u", "origin", &branch_name])
+        .current_dir(&registry_path)
+        .output()?;
+    
+    if !output.status.success() {
+        eprintln!("Warning: Failed to push branch. You may need to push manually:");
+        eprintln!("  cd {:?}", registry_path);
+        eprintln!("  git push -u origin {}", branch_name);
+        eprintln!("\nAfter pushing, create a PR at:");
+        eprintln!("  https://github.com/pain-lng/pain-registry/compare/{}", branch_name);
+    } else {
+        println!("✓ Pushed branch: {}", branch_name);
+        println!("\nNext steps:");
+        println!("  1. Create a PR at: https://github.com/pain-lng/pain-registry/compare/{}", branch_name);
+        println!("  2. Wait for review and merge");
+    }
 
+    Ok(())
+}
+
+fn search_packages(query: &str) -> anyhow::Result<()> {
+    let mut registry = Registry::new()?;
+    
+    println!("Searching for packages matching '{}'...", query);
+    let results = registry.search_github_registry(query)?;
+    
+    if results.is_empty() {
+        println!("No packages found matching '{}'", query);
+        return Ok(());
+    }
+    
+    println!("\nFound {} package(s):\n", results.len());
+    for (name, version, description) in results {
+        println!("  {} v{}", name, version);
+        if let Some(desc) = description {
+            println!("    {}", desc);
+        }
+    }
+    
     Ok(())
 }
 

@@ -10,7 +10,7 @@ pub fn install_packages(packages: &[ResolvedPackage]) -> anyhow::Result<()> {
     let install_dir = get_install_directory()?;
     std::fs::create_dir_all(&install_dir)?;
 
-    let registry = Registry::new()?;
+    let mut registry = Registry::new()?;
 
     for resolved in packages {
         let package = &resolved.package;
