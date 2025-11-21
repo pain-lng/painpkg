@@ -65,7 +65,13 @@ impl Registry {
         if !registry_path.exists() {
             println!("Cloning GitHub registry...");
             let output = Command::new("git")
-                .args(["clone", "--depth", "1", GITHUB_REGISTRY_URL, registry_path.to_str().unwrap()])
+                .args([
+                    "clone",
+                    "--depth",
+                    "1",
+                    GITHUB_REGISTRY_URL,
+                    registry_path.to_str().unwrap(),
+                ])
                 .output()?;
 
             if !output.status.success() {
@@ -83,14 +89,17 @@ impl Registry {
             let _ = Command::new("git")
                 .args(["-C", registry_path.to_str().unwrap(), "checkout", "master"])
                 .output();
-            
+
             // Then pull latest changes
             let output = Command::new("git")
                 .args(["-C", registry_path.to_str().unwrap(), "pull"])
                 .output()?;
 
             if !output.status.success() {
-                eprintln!("Warning: Failed to update registry: {}", String::from_utf8_lossy(&output.stderr));
+                eprintln!(
+                    "Warning: Failed to update registry: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
             }
         }
 
@@ -101,7 +110,7 @@ impl Registry {
     /// Get index path for package name (hierarchical: index/p/a/pa/pain-math)
     fn get_index_path(&self, registry_path: &Path, name: &str) -> PathBuf {
         let mut index_path = registry_path.join("index");
-        
+
         // Create hierarchical path: first 1, 2, 4 chars
         // Example: "pain-math" -> index/p/a/pa/pain-math
         let chars: Vec<char> = name.chars().collect();
@@ -118,12 +127,16 @@ impl Registry {
             index_path.push(&prefix);
         }
         index_path.push(name);
-        
+
         index_path
     }
 
     /// Load package metadata from GitHub registry
-    pub fn load_from_github_registry(&mut self, name: &str, version: &str) -> anyhow::Result<RegistryPackageMetadata> {
+    pub fn load_from_github_registry(
+        &mut self,
+        name: &str,
+        version: &str,
+    ) -> anyhow::Result<RegistryPackageMetadata> {
         let registry_path = self.get_github_registry()?;
         let metadata_path = registry_path
             .join("packages")
@@ -177,7 +190,10 @@ impl Registry {
     }
 
     /// Search packages in GitHub registry by name or description
-    pub fn search_github_registry(&mut self, query: &str) -> anyhow::Result<Vec<(String, String, Option<String>)>> {
+    pub fn search_github_registry(
+        &mut self,
+        query: &str,
+    ) -> anyhow::Result<Vec<(String, String, Option<String>)>> {
         let registry_path = self.get_github_registry()?;
         let packages_dir = registry_path.join("packages");
 
@@ -195,7 +211,8 @@ impl Registry {
                 continue;
             }
 
-            let package_name = package_dir.file_name()
+            let package_name = package_dir
+                .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("")
                 .to_string();
@@ -205,7 +222,9 @@ impl Registry {
                 // Get latest version
                 if let Ok(versions) = self.find_versions_in_github_registry(&package_name) {
                     if let Some(latest_version) = versions.first() {
-                        if let Ok(metadata) = self.load_from_github_registry(&package_name, latest_version) {
+                        if let Ok(metadata) =
+                            self.load_from_github_registry(&package_name, latest_version)
+                        {
                             results.push((
                                 package_name.clone(),
                                 latest_version.clone(),
@@ -223,11 +242,7 @@ impl Registry {
                     if let Ok(metadata) = self.load_from_github_registry(&package_name, &version) {
                         if let Some(ref desc) = metadata.description {
                             if desc.to_lowercase().contains(&query_lower) {
-                                results.push((
-                                    package_name.clone(),
-                                    version,
-                                    metadata.description,
-                                ));
+                                results.push((package_name.clone(), version, metadata.description));
                                 break;
                             }
                         }
@@ -563,7 +578,8 @@ impl Registry {
         let source_path = match &package.source {
             PackageSource::Git { url, rev } => {
                 // Fetch from git
-                self.fetch_from_git(&package.name, url, rev.as_deref())?.path
+                self.fetch_from_git(&package.name, url, rev.as_deref())?
+                    .path
             }
             _ => package.path.clone(),
         };
