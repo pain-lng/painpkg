@@ -105,7 +105,7 @@ impl Registry {
         // Create hierarchical path: first 1, 2, 4 chars
         // Example: "pain-math" -> index/p/a/pa/pain-math
         let chars: Vec<char> = name.chars().collect();
-        if chars.len() >= 1 {
+        if !chars.is_empty() {
             let prefix: String = chars[..1].iter().collect();
             index_path.push(&prefix);
         }
@@ -417,6 +417,7 @@ impl Registry {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn publish_package(&self, package: &Package) -> anyhow::Result<()> {
         // Create package directory in registry
         let package_dir = self
